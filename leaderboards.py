@@ -1,13 +1,18 @@
 import MySQLdb
 import pandas as pd
 import requests
+import yaml
 
 pd.set_option('display.max_colwidth',100)
 
-con = MySQLdb.connect('stage4-mysql.npr.org',
-		      'admin',
-		      'admin',
-		      'infinite')
+with open("config.yml", 'r') as ymlfile:
+    cfg = yaml.load(ymlfile)
+
+con = MySQLdb.connect(host=cfg['Cobalt']['host'],
+                        passwd=cfg['Cobalt']['passwd'],
+                        user=cfg['Cobalt']['user'],
+                        db=cfg['Cobalt']['db']
+                     )
 
 sql1 = ('SELECT ratings_story_id, count(ratings_rating) as ThumbupsAndShares '
 	'FROM infinite.user_ratings '
@@ -46,7 +51,7 @@ df['Thumbup_Share_pct'] = df['ThumbupsAndShares'] / df['totalPlays']
 
 df['Thumbup_Share_pct'] = [100*round(i,4) for i in df['Thumbup_Share_pct']]
 
-df = df[df['totalPlays'] >= 200]
+df = df[df['totalPlays'] >= 500]
 
 df = df.sort(['Thumbup_Share_pct'], ascending=False)
 
@@ -57,7 +62,6 @@ print 'Done'
     
 print df.shape
 
-df = df[0:10]
 
 def get_title(id):
 	baseurl = "http://api.npr.org/query"
@@ -74,7 +78,9 @@ df['title'] = [get_title(id) for id in df['ratings_story_id']]
 
 print 'done fetching titles'
 
-df.to_csv('/home/developer/leaderboards/newsmag_leaderboard.csv', encoding='utf-8', index=False)
+df.to_csv('/var/www/newsmag_leaderboard.csv', encoding='utf-8', index=False)
+
+df = df[0:10]
 
 print 'Script completed'
 
@@ -89,7 +95,7 @@ html_string = '''
         <style>body{ margin:0 100; background:whitesmoke; }</style>
     </head>
     <body>
-       <h1>NPR One Leaderboard</h1>
+	 <h1>NPR One Leaderboard</h1>
 	  <p>A list of the 10 most frequently Liked and Shared pieces among New Magazine content in the last 24 hours</p>
 ''' + dfhtml + '''
     </body>
