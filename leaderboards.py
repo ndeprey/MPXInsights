@@ -2,10 +2,15 @@ import MySQLdb
 import pandas as pd
 import requests
 import yaml
+import time
+import datetime
+
+ts = time.time()
+st = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
 
 pd.set_option('display.max_colwidth',100)
 
-with open("config.yml", 'r') as ymlfile:
+with open("/home/developer/leaderboards/config.yml", 'r') as ymlfile:
     cfg = yaml.load(ymlfile)
 
 con = MySQLdb.connect(host=cfg['Cobalt']['host'],
@@ -82,21 +87,25 @@ df.to_csv('/var/www/newsmag_leaderboard.csv', encoding='utf-8', index=False)
 
 df = df[0:10]
 
+df['link_story_id'] = ['<a href="http://npr.org/' + str(int(i)) + '">' + str(int(i)) + '</a>' for i in df['ratings_story_id']]
+
 print 'Script completed'
 
-df = df[['ratings_story_id','title','Thumbup_Share_pct']]
+df = df[['link_story_id','title','Thumbup_Share_pct']]
 
-dfhtml = df.to_html(index=False).replace('<table border="1" class="dataframe">','<table class="table table-striped">') # use bootstrap styling
+dfhtml = df.to_html(index=False,escape=False).replace('<table border="1" class="dataframe">','<table class="table table-striped">') # use bootstrap styling
 
 html_string = '''
 <html>
     <head>
         <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap.min.css">
         <style>body{ margin:0 100; background:whitesmoke; }</style>
+	<meta http-equiv="refresh" content="300" >
     </head>
     <body>
 	 <h1>NPR One Leaderboard</h1>
-	  <p>A list of the 10 most frequently Liked and Shared pieces among New Magazine content in the last 24 hours</p>
+	 <h5>Last Updated: '''+ st + '''</h5>
+	  <p>A list of the 10 most frequently Liked and Shared pieces among New Magazine content in NPR One over the last 24 hours. Minimum plays = 500</p>
 ''' + dfhtml + '''
     </body>
 </html>'''
