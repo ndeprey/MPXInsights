@@ -56,7 +56,7 @@ df['Thumbup_Share_pct'] = df['ThumbupsAndShares'] / df['totalPlays']
 
 df['Thumbup_Share_pct'] = [100*round(i,4) for i in df['Thumbup_Share_pct']]
 
-df = df[df['totalPlays'] >= 1000]
+df = df[df['totalPlays'] >= 3000]
 
 df = df.sort(['Thumbup_Share_pct'], ascending=False)
 
@@ -79,19 +79,33 @@ def get_title(id):
 	title = r['list']['story'][0]['title']['$text']
 	return title
 
-df['title'] = [get_title(id) for id in df['ratings_story_id']]
+def get_show(id):
+        baseurl = "http://api.npr.org/query"
+        payload = {'id':id,
+        'fields': 'title,teaser,show',
+        'output':'JSON',
+        'apiKey':'MDE1MTM2Mjk1MDE0MDUwMTIwNzlmYTdkNA001'}
+        r = requests.get(baseurl, params=payload)
+        r = r.json()
+        show = r['list']['story'][0]['show'][0]['program']['$text']
+	return show
+
+
+df['title'] = [get_title(id).encode('utf-8') for id in df['ratings_story_id']]
+
+df['show'] = [get_show(id).encode('utf-8') for id in df['ratings_story_id']]
 
 print 'done fetching titles'
 
 df.to_csv('/var/www/newsmag_leaderboard.csv', encoding='utf-8', index=False)
 
-df = df[0:10]
+df = df[0:5]
 
 df['link_story_id'] = ['<a href="http://npr.org/' + str(int(i)) + '">' + str(int(i)) + '</a>' for i in df['ratings_story_id']]
 
 print 'Script completed'
 
-df = df[['link_story_id','title','Thumbup_Share_pct']]
+df = df[['link_story_id','title','show','Thumbup_Share_pct']]
 
 dfhtml = df.to_html(index=False,escape=False).replace('<table border="1" class="dataframe">','<table class="table table-striped">') # use bootstrap styling
 
@@ -103,15 +117,15 @@ html_string = '''
 	<meta http-equiv="refresh" content="300" >
     </head>
     <body>
-	 <h1>NPR One Leaderboard</h1>
+	 <h1>NPR One Most Liked and Shared</h1>
 	 <h5>Last Updated: '''+ st + '''</h5>
-	  <p>A list of the 10 most frequently Liked and Shared pieces among New Magazine content in NPR One over the last 48 hours. Minimum plays = 1000</p>
+	  <p>A list of the 5 most frequently Liked and Shared pieces among New Magazine content in NPR One over the last 48 hours. Minimum plays = 3000</p>
 ''' + dfhtml + '''
     </body>
 </html>'''
 
 f = open('/var/www/news_mag_leaderboard.html','w')
-f.write(html_string)
+f.write(html_string.encode('utf-8'))
 f.close()
 
 print 'done saving HTML table'
